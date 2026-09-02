@@ -2,15 +2,17 @@
 
 **A complete deterministic computer recreated in pure Ada — from first principles to Resonant Tensor Exchange.**
 
-[![Ada](https://img.shields.io/badge/Language-Ada_2022-blue.svg)](https://www.adaic.org/)
-[![License](https://img.shields.io/badge/License-Sovereign_Source_v1.0-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-40_PASS-brightgreen.svg)](#self-test-results)
-[![Benchmarks](https://img.shields.io/badge/Benchmarks-9_PASS-brightgreen.svg)](#benchmark-suite)
-[![Packages](https://img.shields.io/badge/Packages-21_Ada-orange.svg)](#architecture)
-[![Source](https://img.shields.io/badge/Source-42_files_100KB-red.svg)](#source-layout)
-[![Build](https://img.shields.io/badge/Build-gnatmake_Pure_Ada-purple.svg)](#build--run)
-[![Architecture](https://img.shields.io/badge/Architecture-Deterministic_Fail--Closed-yellow.svg)](#architecture)
-[![RTX](https://img.shields.io/badge/RTX-256--Dim_Tensor_Engine-critical.svg)](#rtx-sovereign-driver)
+[![Ada](https://img.shields.io/badge/Ada_2022-blue?style=flat-square)](https://www.adaic.org/)
+[![License](https://img.shields.io/badge/SSv1.0-green?style=flat-square)](LICENSE)
+[![Tests](https://img.shields.io/badge/40_Tests-brightgreen?style=flat-square)](#self-test-results)
+[![Benchmarks](https://img.shields.io/badge/9_Benchmarks-brightgreen?style=flat-square)](#benchmark-suite)
+[![Packages](https://img.shields.io/badge/21_Packages-orange?style=flat-square)](#architecture)
+[![Source](https://img.shields.io/badge/43_Files_132KB-red?style=flat-square)](#source-layout)
+[![Build](https://img.shields.io/badge/gnatmake-purple?style=flat-square)](#build--run)
+[![Architecture](https://img.shields.io/badge/Fail--Closed-yellow?style=flat-square)](#architecture)
+[![RTX](https://img.shields.io/badge/256--Dim_Tensor-critical?style=flat-square)](#rtx-sovereign-driver)
+[![Python](https://img.shields.io/badge/Python-VC_Bounds-3776AB?style=flat-square)](#python-vc-dimension-calculator)
+[![SystemVerilog](https://img.shields.io/badge/SVA-FormalAssertions-F57C00?style=flat-square)](#systemverilog-formal-assertions)
 
 ---
 
@@ -386,6 +388,70 @@ Status := RTX_Sovereign_Driver.Optimize_Margin(
 
 ---
 
+## Python: VC Dimension Calculator
+
+PAC-learning VC dimension calculator for quantized neural network weight spaces. Given a number of weights `d` and bits per weight `b`, computes the number of unique weight vectors and the VC dimension of the resulting linear classifier space.
+
+| Function | Purpose |
+|----------|---------|
+| `count_weight_vectors(d, b)` | `2^(d*b)` unique quantized weight vectors |
+| `vc_dimension(d)` | `d + 1` for linear classifiers in `d` dimensions |
+| `pacific_bound(d, b, epsilon)` | `O(vc / epsilon)` sample complexity |
+
+```bash
+cd python/
+python quantized_vc_bounds.py
+```
+
+---
+
+## C: Sovereign Entropy Runtime
+
+CUDA-Q quantum kernel implementing the Sovereign Entropy Theorem. Computes `H(X) = -Σ p(x)·log₂(p(x))` with dynamic parallelism and entanglement witnesses.
+
+| Kernel | Purpose |
+|--------|---------|
+| `entropy_kernel` | Entropy computation with log₂ via bit-shift + Taylor |
+| `witness_kernel` | CHSH inequality: `E(a,b) = ⟨ψ|σ_a⊗σ_b|ψ⟩` |
+| `main` | CUDA-Q `qpp::execute` + `cudaq::sample` integration |
+
+```bash
+cd ../sovereign-entropy-theorem/
+nvq++ cudaq/sovereign_entropy.cu -o sovereign_entropy
+./sovereign_entropy
+```
+
+---
+
+## SystemVerilog: Formal Assertions
+
+SystemVerilog Assertion (SVA) suite extracted from the Ada processor invariants. Targets formal verification tools (Jasper, VC Formal, OneSpin) or simulation with assertions enabled.
+
+**24 assertions** across 9 invariant categories:
+
+| Category | Assertions | What It Proves |
+|----------|------------|----------------|
+| **Type Ranges** | `assert_byte_range`, `assert_word32_value` | All values fit Ada Integer bounds |
+| **Buffer Capacity** | `assert_buf_len`, `assert_buf_full`, `assert_buf_empty` | `Length ≤ 128`, full/empty flags consistent |
+| **Data Store** | `assert_store_count`, `assert_valid_id` | `Count ≤ 32`, valid items have non-zero ID |
+| **State Machine** | `assert_legal_trans`, `assert_shutdown` | Only valid transitions allowed, Shutdown is absorbing |
+| **Safe Arithmetic** | `assert_safe_add`, `assert_safe_sub`, `assert_gcd` | Saturation on overflow/underflow, GCD non-negative |
+| **Integrity** | `assert_integrity`, `assert_item_csum` | Checksum match required for integrity claims |
+| **Serial Header** | `assert_hdr_magic`, `assert_hdr_ver`, `assert_hdr_len` | Magic `0xADA1`, version 1–2, length ≤ 64 |
+| **Authorization** | (placeholder) | Monotonic auth level lattice |
+| **Fail-Closed** | `assert_reset` | Reset returns to `ST_IDLE` |
+
+```bash
+cd sv/
+# Formal verification
+jasper sovereign_invariants.sv
+
+# Or simulation with assertions
+vcs -sverilog sovereign_invariants.sv -debug_access+all
+```
+
+---
+
 ## Build & Run
 
 ### Prerequisites
@@ -465,6 +531,8 @@ sovereign-ada-rtx/
 │   ├── math_const.ads / .adb        -- Fixed-point constants
 │   ├── command_utils.ads / .adb     -- Opcode classification
 │   └── main.adb                     -- Cold boot REPL
+├── sv/
+│   └── sovereign_invariants.sv      -- 24 SVA formal assertions
 ├── python/
 │   └── quantized_vc_bounds.py       -- VC dimension calculator
 ├── images/
