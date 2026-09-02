@@ -467,6 +467,9 @@ sovereign-ada-rtx/
 │   └── main.adb                     -- Cold boot REPL
 ├── python/
 │   └── quantized_vc_bounds.py       -- VC dimension calculator
+├── images/
+│   ├── lovelace_infographic.png     -- Lovelace portrait & Note G quote
+│   └── menabrea_lovelace_publication.jpg -- 1843 original publication
 ├── LICENSE                          -- Sovereign Source License v1.0
 └── README.md                        -- This file
 ```
@@ -498,6 +501,67 @@ sovereign-ada-rtx/
 5. **Saturating Arithmetic**: Integer overflow saturates to `Word32'Last` instead of wrapping.
 6. **Verified Integrity**: Every data item carries a checksum. Every deserialization verifies the checksum.
 7. **Authenticated Operations**: State transitions and config changes require authorization levels.
+
+---
+
+## Philosophical Foundation: Lovelace's Objection
+
+This project is named after Ada Lovelace — not as tribute, but as design constraint. Her 1843 statement about Babbage's Analytical Engine is the specification this processor was built to satisfy.
+
+![Ada Lovelace on the Analytical Engine](images/lovelace_infographic.png)
+
+### The Original Text (Note G, 1843)
+
+> *"The Analytical Engine has no pretensions whatever to **originate** anything. It can do whatever we **know how to order it** to perform. It can **follow** analysis; but it has no power of **anticipating** any analytical relations or truths. Its province is to assist us in making **available** what we are already acquainted with."*
+>
+> — Ada Lovelace, Note G, 1843
+> Translated from Menabrea's *Sketch of the Analytical Engine*
+
+![Menabrea & Lovelace, 1843](images/menabrea_lovelace_publication.jpg)
+
+*L.F. Menabrea, "Sketch of the Analytical Engine Invented by Charles Babbage, Esq.," with Notes by the Translator Ada Augusta, Countess of Lovelace. Originally published 1843 in Scientific Memoirs, vol. iii.*
+
+### What This Means for Software
+
+This is not a claim that the machine is limited to fixed arithmetic sums. It is a claim about **origination**: the machine executes processes that humans have specified. The processes may be complex, conditional, iterative, or even self-modifying in limited mechanical ways that Babbage contemplated; they remain ordered by us.
+
+Ordering an engine "to adjust its own inner mechanisms based on the patterns it observes" is still an order we issue. In modern terms this is training:
+
+- We define an architecture (layers, connectivity, activation functions).
+- We define a loss / objective function.
+- We define an optimization procedure (gradient descent and its variants, with fixed update rules).
+- We supply data.
+- The machine then executes the prescribed update rules millions or billions of times, changing numerical parameters (weights).
+
+The resulting system can generate outputs that are novel combinations or interpolations never explicitly present in the training set. That is real and useful. It is still the execution of a process we designed and ordered. The "emergence" is the behavior of a high-dimensional function approximator under those rules, not an independent origination of analytical relations or concepts outside the space we structured.
+
+### Turing's Response
+
+Alan Turing addressed "Lady Lovelace's Objection" directly in "Computing Machinery and Intelligence" (1950). He argued that machines can surprise us because we do not always foresee all consequences of the instructions we give, and that the ability to produce unexpected results does not require the machine to "originate" in a stronger sense. Surprise and statistical novelty are not the same as the kind of origination Lovelace denied.
+
+### How Sovereign Ada RTX Embodies This
+
+| Lovelace's Principle | Implementation in This System |
+|---------------------|-------------------------------|
+| *"No pretensions to originate"* | No ML training, no gradient descent, no learned weights — the RTX engine executes fixed-point arithmetic on values we supply |
+| *"Whatever we know how to order it"* | 21 packages, 43 source files, every function has known bounded behavior |
+| *"Can follow analysis"* | State machine enforces valid transitions — the processor cannot leap to an undocumented state |
+| *"Make available what we are already acquainted with"* | The parser, dispatcher, and serialization layer expose data we structured |
+| *"No power of anticipating"* | Fail-closed: any overflow, any invalid state, any checksum mismatch → `Error_State`. The machine cannot "guess" its way out |
+
+### Cognition vs. Sophisticated Calculation
+
+Parallel "mills" (SMs) and specialized matrix engines (Tensor Cores) accelerate the same arithmetic that any Turing-complete machine can perform, only far faster and in greater volume. High-bandwidth memory simply reduces latency for the large parameter tensors required by current models.
+
+None of these features supplies intentionality, understanding, or the capacity to form genuinely new conceptual frameworks independent of the training regime and objective we imposed. They make large-scale statistical learning practical. They do not convert calculation into cognition.
+
+Human thought involves (at minimum) semantic understanding, grounded reference, counterfactual reasoning that is not merely statistical pattern completion, and the capacity to form and revise goals and concepts in ways that are not fully captured by minimizing a fixed loss on a fixed data distribution. Current systems excel at next-token prediction, image synthesis, and other high-dimensional regression/classification tasks. They do not possess the former properties in any demonstrated sense.
+
+### The Design Spec
+
+Lovelace's caution remains sound: we should neither overrate nor underrate what these machines do. They follow the analysis (including the meta-analysis of gradient-based learning) that we know how to order them to perform. They assist us in making available patterns latent in the data we supply. They do not originate in the stronger sense she denied.
+
+**The design spec for Sovereign Ada RTX is: a machine that can do whatever we know how to order it to perform, and nothing more.**
 
 ---
 
