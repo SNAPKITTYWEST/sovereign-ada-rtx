@@ -10,6 +10,11 @@ with Serialization;
 with Parser;
 with State_Machine;
 with Dispatcher;
+with String_Utils;
+with Status_Utils;
+with Buffer_Stats;
+with Math_Const;
+with Command_Utils;
 
 package body Self_Test is
 
@@ -22,11 +27,7 @@ package body Self_Test is
       end loop;
    end Set_Name;
 
-   procedure Run_All_Tests
-     (Results : out Test_Results;
-      Count : out Natural;
-      Overall : out Boolean)
-   is
+   procedure Run_All_Tests (Results : out Test_Results; Count : out Natural; Overall : out Boolean) is
       Idx : Natural := 0;
       Log : Errors.Error_Log;
       St : Status_Code;
@@ -41,6 +42,7 @@ package body Self_Test is
       Ctx : Dispatcher.Context;
       W : Word32;
       W16 : Word16;
+      BS : Bounded_String;
    begin
       Results := (others => (Name => (others => ' '), Passed => False, Code => Success));
       Overall := True;
@@ -48,47 +50,65 @@ package body Self_Test is
       Set_Name (Results (Idx), "Safe_Add_Normal");
       W := Math_Utils.Safe_Add (10, 20, Ov);
       Results (Idx).Passed := (not Ov) and then (W = 30);
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Safe_Add_Overflow");
       W := Math_Utils.Safe_Add (Word32'Last, 1, Ov);
       Results (Idx).Passed := Ov;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Safe_Sub_Under");
       W := Math_Utils.Safe_Sub (5, 10, Ov);
       Results (Idx).Passed := Ov and then (W = 0);
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "ISqrt");
       Results (Idx).Passed := Math_Utils.ISqrt (100) = 10;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Power2");
       Results (Idx).Passed := Math_Utils.Is_Power_Of_Two (16) and not Math_Utils.Is_Power_Of_Two (15);
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
+
+      Set_Name (Results (Idx), "GCD_LCM");
+      Results (Idx).Passed := Math_Utils.GCD (12, 8) = 4 and Math_Utils.LCM (4, 6) = 12;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
+
+      Set_Name (Results (Idx), "Align");
+      Results (Idx).Passed := Math_Utils.Align_Up (5, 4) = 8 and Math_Utils.Align_Down (7, 4) = 4;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
+
+      Set_Name (Results (Idx), "NextPow2");
+      Results (Idx).Passed := Math_Utils.Next_Power_Of_Two (5) = 8;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
+
+      Set_Name (Results (Idx), "Log2");
+      Results (Idx).Passed := Math_Utils.Log2_Floor (16) = 4;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Buffer_Ops");
       Memory_Structures.Init_Buffer (Buf);
       St := Memory_Structures.Append_Byte (Buf, 42);
       Results (Idx).Passed := St = Success and Memory_Structures.Buffer_Length (Buf) = 1;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
-      Set_Name (Results (Idx), "Buffer_Full");
+      Set_Name (Results (Idx), "Buffer_Fill");
       Memory_Structures.Init_Buffer (Buf);
-      for I in 1 .. Max_Buffer_Size loop
-         St := Memory_Structures.Append_Byte (Buf, 1);
-      end loop;
-      St := Memory_Structures.Append_Byte (Buf, 0);
-      Results (Idx).Passed := St = Buffer_Overflow;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      Memory_Structures.Fill_Buffer (Buf, 7, 10);
+      Results (Idx).Passed := Memory_Structures.Buffer_Length (Buf) = 10;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
+
+      Set_Name (Results (Idx), "Buffer_Eq");
+      declare
+         A, B : Memory_Structures.Buffer;
+      begin
+         Memory_Structures.Init_Buffer (A);
+         Memory_Structures.Init_Buffer (B);
+         Memory_Structures.Fill_Buffer (A, 5, 3);
+         Memory_Structures.Fill_Buffer (B, 5, 3);
+         Results (Idx).Passed := Memory_Structures.Buffer_Equals (A, B);
+      end;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Store_Insert");
       Memory_Structures.Init_Store (Store);
@@ -101,23 +121,25 @@ package body Self_Test is
          St := Memory_Structures.Find_Item_By_Id (Store, 100, FI, Found);
          Results (Idx).Passed := Found and FI.Value = 999;
       end;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
+
+      Set_Name (Results (Idx), "Store_Remove");
+      St := Memory_Structures.Remove_Item_By_Id (Store, 100);
+      Results (Idx).Passed := St = Success and Memory_Structures.Store_Count (Store) = 0;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Invalid_Item");
       Item.Valid := False;
       St := Memory_Structures.Insert_Item (Store, Item);
       Results (Idx).Passed := St = Invalid_Input;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Header_Ser");
       Hdr := (Magic => 16#ADA1#, Version => 1, Length => 0, Checksum => 0, State => Idle);
       Memory_Structures.Init_Buffer (Buf);
       St := Serialization.Serialize_Header (Hdr, Buf);
       Results (Idx).Passed := St = Success and Memory_Structures.Buffer_Length (Buf) = 7;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Header_De");
       declare
@@ -126,8 +148,7 @@ package body Self_Test is
          St := Serialization.Deserialize_Header (Buf, Hdr2);
          Results (Idx).Passed := St = Success and Hdr2.Magic = 16#ADA1#;
       end;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Item_Ser");
       Item := (Id => 16#ABCD#, Value => 12345, Flags => 7, Checksum => 0, Valid => True);
@@ -135,8 +156,7 @@ package body Self_Test is
       Memory_Structures.Init_Buffer (Buf);
       St := Serialization.Serialize_Item (Item, Buf);
       Results (Idx).Passed := St = Success;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Item_De");
       declare
@@ -145,93 +165,87 @@ package body Self_Test is
          St := Serialization.Deserialize_Item (Buf, 0, Item2, Next);
          Results (Idx).Passed := St = Success and Item2.Id = 16#ABCD# and Item2.Value = 12345;
       end;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
-      Set_Name (Results (Idx), "Integrity");
+      Set_Name (Results (Idx), "Integrity_Ver");
       Item := (Id => 42, Value => 9999, Flags => 3, Checksum => 0, Valid => True);
       Item.Checksum := Integrity.Compute_Item_Checksum (Item, 16#ADA1#);
       St := Integrity.Verify_Item (Item, 16#ADA1#);
       Results (Idx).Passed := St = Success;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Integrity_Fail");
       Item.Checksum := Item.Checksum + 1;
       St := Integrity.Verify_Item (Item, 16#ADA1#);
       Results (Idx).Passed := St = Integrity_Failure;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "State_Trans");
       State_Machine.Init_Machine (SM);
       St := State_Machine.Transition (SM, Initializing, Log);
       Results (Idx).Passed := St = Success;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "State_Invalid");
       St := State_Machine.Transition (SM, Serializing, Log);
       Results (Idx).Passed := St = State_Error;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Config_Set");
       Config.Init_Config (Cfg);
       St := Config.Set_Value (Cfg, Key_Max_Length, 32, Log);
       Results (Idx).Passed := St = Success and Config.Get_Max_Length (Cfg) = 32;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Config_Bad");
       St := Config.Set_Value (Cfg, Key_Max_Length, 999, Log);
       Results (Idx).Passed := St = Out_Of_Range;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
+
+      Set_Name (Results (Idx), "Config_Count");
+      Config.Init_Config (Cfg);
+      Errors.Clear_Error (Log);
+      St := Config.Set_Value (Cfg, Key_Max_Length, 32, Log);
+      St := Config.Set_Value (Cfg, Key_Timeout, 500, Log);
+      Results (Idx).Passed := Config.Count_Set_Entries (Cfg) = 2;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Dispatch");
       Dispatcher.Init_Context (Ctx);
       St := Dispatcher.Get_Current_State (Ctx)'Pos = Idle'Pos;
       Results (Idx).Passed := St = Success;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Parse_Help");
       St := Parser.Parse_Line ("HELP", Cmd, Log);
       Results (Idx).Passed := St = Success and Cmd.Id = Cmd_Help;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Parse_Bad");
       St := Parser.Parse_Line ("NOCMD", Cmd, Log);
       Results (Idx).Passed := St = Parse_Error;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Validate_Buf");
       St := Validation.Validate_Buffer_Length (100, 64);
       Results (Idx).Passed := St = Buffer_Overflow;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Validate_Item");
       Item := (Id => 0, Value => 0, Flags => 0, Checksum => 0, Valid => False);
       St := Validation.Validate_Data_Item (Item);
       Results (Idx).Passed := St = Invalid_Input;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Auth_Deny");
       St := Validation.Validate_Auth_Required (Admin, Guest);
       Results (Idx).Passed := St = Authorization_Denied;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Auth_Ok");
       St := Validation.Validate_Auth_Required (Operator, Admin);
       Results (Idx).Passed := St = Success;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Store_Ser");
       Memory_Structures.Init_Store (Store);
@@ -243,8 +257,7 @@ package body Self_Test is
       Memory_Structures.Init_Buffer (Buf);
       St := Serialization.Serialize_Store (Store, Buf, Log);
       Results (Idx).Passed := St = Success;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Store_De");
       declare
@@ -253,23 +266,65 @@ package body Self_Test is
          St := Serialization.Deserialize_Store (Buf, Store2, Log);
          Results (Idx).Passed := St = Success and Memory_Structures.Store_Count (Store2) = 5;
       end;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Set_Name (Results (Idx), "Rotate");
       W16 := Math_Utils.Rotate_Left (16#0001#, 4);
       Results (Idx).Passed := W16 = 16#0010#;
-      if not Results (Idx).Passed then Overall := False; end if;
-      Idx := Idx + 1;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
+
+      Set_Name (Results (Idx), "String_Len");
+      String_Utils.Clear (BS);
+      String_Utils.Copy_To ("HELLO", BS);
+      Results (Idx).Passed := String_Utils.Length_Of (BS) = 5;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
+
+      Set_Name (Results (Idx), "String_Upper");
+      String_Utils.Clear (BS);
+      String_Utils.Copy_To ("test", BS);
+      declare
+         Upper : Bounded_String := String_Utils.To_Upper_Bounded (BS);
+      begin
+         Results (Idx).Passed := String_Utils.Equals (Upper, (0 => 'T', 1 => 'E', 2 => 'S', 3 => 'T', others => ' '));
+      end;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
+
+      Set_Name (Results (Idx), "Status_Utils");
+      Results (Idx).Passed := Status_Utils.Is_Success (Success) and Status_Utils.Is_Failure (Buffer_Overflow);
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
+
+      Set_Name (Results (Idx), "Severity");
+      Results (Idx).Passed := Status_Utils.Severity_Level (Integrity_Failure) = 4;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
+
+      Set_Name (Results (Idx), "Buf_Occ");
+      Memory_Structures.Init_Buffer (Buf);
+      Memory_Structures.Fill_Buffer (Buf, 0, 64);
+      Results (Idx).Passed := Buffer_Stats.Occupancy_Percent (Buf) = 50;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
+
+      Set_Name (Results (Idx), "Buf_Avg");
+      Memory_Structures.Init_Buffer (Buf);
+      Memory_Structures.Fill_Buffer (Buf, 10, 4);
+      Results (Idx).Passed := Buffer_Stats.Average_Byte (Buf) = 10;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
+
+      Set_Name (Results (Idx), "Cmd_Utils");
+      Results (Idx).Passed := Command_Utils.Is_Query_Command (Cmd_Help) and Command_Utils.Is_Mutating_Command (Cmd_Set_Config);
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
+
+      Set_Name (Results (Idx), "Math_Const");
+      Results (Idx).Passed := Math_Const.Factorial_Bounded (5) = 120;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
+
+      Set_Name (Results (Idx), "Fibonacci");
+      Results (Idx).Passed := Math_Const.Fibonacci (10) = 55;
+      if not Results (Idx).Passed then Overall := False; end if; Idx := Idx + 1;
 
       Count := Idx;
    end Run_All_Tests;
 
-   procedure Report_Results
-     (Results : Test_Results;
-      Count : Natural;
-      Overall : Boolean)
-   is
+   procedure Report_Results (Results : Test_Results; Count : Natural; Overall : Boolean) is
       Name_Str : String (1 .. 64); Name_Len : Natural;
    begin
       Ada.Text_IO.New_Line;
@@ -278,9 +333,7 @@ package body Self_Test is
       for I in 0 .. Count - 1 loop
          Name_Len := 0;
          for J in Results (I).Name'Range loop
-            if Results (I).Name (J) /= ' ' then
-               Name_Len := J + 1;
-            end if;
+            if Results (I).Name (J) /= ' ' then Name_Len := J + 1; end if;
          end loop;
          if Name_Len > 0 then
             Name_Str := (others => ' ');

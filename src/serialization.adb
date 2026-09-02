@@ -2,9 +2,7 @@ with Core_Types; use Core_Types;
 with Memory_Structures;
 with Errors;
 with Integrity;
-
 package body Serialization is
-
    function Put_Word16 (Buf : in out Memory_Structures.Buffer; V : Word16) return Status_Code is
       St : Status_Code;
    begin
@@ -12,7 +10,6 @@ package body Serialization is
       if St /= Success then return St; end if;
       return Memory_Structures.Append_Byte (Buf, Byte ((V / 256) mod 256));
    end Put_Word16;
-
    function Put_Word32 (Buf : in out Memory_Structures.Buffer; V : Word32) return Status_Code is
       St : Status_Code; T : Word32 := V;
    begin
@@ -23,7 +20,6 @@ package body Serialization is
       end loop;
       return Success;
    end Put_Word32;
-
    function Get_Word16 (Buf : Memory_Structures.Buffer; Offset : Index_Type; V : out Word16) return Status_Code is
       B0, B1 : Byte; St : Status_Code;
    begin
@@ -34,7 +30,6 @@ package body Serialization is
       V := Word16 (B0) + Word16 (B1) * 256;
       return Success;
    end Get_Word16;
-
    function Get_Word32 (Buf : Memory_Structures.Buffer; Offset : Index_Type; V : out Word32) return Status_Code is
       B : Byte; St : Status_Code; Acc : Word32 := 0; Mult : Word32 := 1;
    begin
@@ -47,7 +42,6 @@ package body Serialization is
       V := Acc;
       return Success;
    end Get_Word32;
-
    function Serialize_Header (Hdr : Serial_Header; Buf : in out Memory_Structures.Buffer) return Status_Code is
       St : Status_Code; Local : Serial_Header := Hdr;
    begin
@@ -63,7 +57,6 @@ package body Serialization is
       if St /= Success then return St; end if;
       return Memory_Structures.Append_Byte (Buf, Byte (App_State'Pos (Local.State)));
    end Serialize_Header;
-
    function Deserialize_Header (Buf : Memory_Structures.Buffer; Hdr : out Serial_Header) return Status_Code is
       St : Status_Code; B : Byte; Pos : Index_Type := 0;
    begin
@@ -82,7 +75,6 @@ package body Serialization is
       Hdr.State := App_State'Val (Integer (B));
       return Integrity.Verify_Header (Hdr);
    end Deserialize_Header;
-
    function Serialize_Item (Item : Data_Item; Buf : in out Memory_Structures.Buffer) return Status_Code is
       St : Status_Code;
    begin
@@ -90,13 +82,8 @@ package body Serialization is
       St := Put_Word32 (Buf, Item.Value); if St /= Success then return St; end if;
       St := Memory_Structures.Append_Byte (Buf, Item.Flags); if St /= Success then return St; end if;
       St := Put_Word16 (Buf, Item.Checksum); if St /= Success then return St; end if;
-      if Item.Valid then
-         return Memory_Structures.Append_Byte (Buf, 1);
-      else
-         return Memory_Structures.Append_Byte (Buf, 0);
-      end if;
+      if Item.Valid then return Memory_Structures.Append_Byte (Buf, 1); else return Memory_Structures.Append_Byte (Buf, 0); end if;
    end Serialize_Item;
-
    function Deserialize_Item (Buf : Memory_Structures.Buffer; Offset : Index_Type; Item : out Data_Item; Next : out Index_Type) return Status_Code is
       St : Status_Code; B : Byte; Pos : Index_Type := Offset;
    begin
@@ -110,7 +97,6 @@ package body Serialization is
       Item.Valid := (B = 1); Next := Pos + 1;
       return Success;
    end Deserialize_Item;
-
    function Serialize_Store (Store : Memory_Structures.Data_Store; Buf : in out Memory_Structures.Buffer; Log : in out Errors.Error_Log) return Status_Code is
       Count : Natural := Memory_Structures.Store_Count (Store);
       Item : Data_Item; St : Status_Code; Hdr : Serial_Header;
@@ -127,7 +113,6 @@ package body Serialization is
       end loop;
       return Success;
    end Serialize_Store;
-
    function Deserialize_Store (Buf : Memory_Structures.Buffer; Store : in out Memory_Structures.Data_Store; Log : in out Errors.Error_Log) return Status_Code is
       Hdr : Serial_Header; St : Status_Code; Item : Data_Item; Pos : Index_Type := 7; Next : Index_Type; Count : Natural;
    begin
@@ -147,5 +132,5 @@ package body Serialization is
       end loop;
       return Success;
    end Deserialize_Store;
-
+   function Header_Size return Length_Type is (7);
 end Serialization;

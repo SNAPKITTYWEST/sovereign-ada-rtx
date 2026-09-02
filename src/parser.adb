@@ -1,31 +1,17 @@
 with Core_Types; use Core_Types;
 with Errors;
-
 package body Parser is
-
    function Is_Whitespace (C : Character) return Boolean is
-   begin
-      return C = ' ' or C = ASCII.HT or C = ASCII.CR or C = ASCII.LF;
-   end Is_Whitespace;
-
+   begin return C = ' ' or C = ASCII.HT or C = ASCII.CR or C = ASCII.LF; end Is_Whitespace;
    function Is_Digit (C : Character) return Boolean is (C >= '0' and C <= '9');
    function Is_Alpha (C : Character) return Boolean is
-   begin
-      return (C >= 'A' and C <= 'Z') or (C >= 'a' and C <= 'z');
-   end Is_Alpha;
+   begin return (C >= 'A' and C <= 'Z') or (C >= 'a' and C <= 'z'); end Is_Alpha;
    function Is_Alnum (C : Character) return Boolean is (Is_Alpha (C) or Is_Digit (C));
-
    function Char_To_Byte (C : Character) return Byte is (Byte (Character'Pos (C)));
    function Byte_To_Char (B : Byte) return Character is
-   begin
-      if B > 127 then return '?'; else return Character'Val (Integer (B)); end if;
-   end Byte_To_Char;
-
+   begin if B > 127 then return '?'; else return Character'Val (Integer (B)); end if; end Byte_To_Char;
    function To_Upper (C : Character) return Character is
-   begin
-      if C >= 'a' and C <= 'z' then return Character'Val (Character'Pos (C) - 32); else return C; end if;
-   end To_Upper;
-
+   begin if C >= 'a' and C <= 'z' then return Character'Val (Character'Pos (C) - 32); else return C; end if; end To_Upper;
    function Match_Command (Token : String) return Command_Id is
       Upper : String (Token'Range);
    begin
@@ -43,7 +29,6 @@ package body Parser is
       else return Cmd_None;
       end if;
    end Match_Command;
-
    function Parse_Line (Line : String; Cmd : out Parsed_Command; Log : in out Errors.Error_Log) return Status_Code is
       I : Natural := Line'First; Start : Natural; Token_Len : Natural;
       Token : String (1 .. 32); Arg_Idx : Natural := 0; Val : Integer; Digit_Count : Natural;
@@ -81,13 +66,17 @@ package body Parser is
             if Val > 255 then Errors.Set_Error (Log, Out_Of_Range, 0, "arg"); return Out_Of_Range; end if;
             Digit_Count := Digit_Count + 1; I := I + 1;
          end loop;
-         if Digit_Count = 0 then
-            Errors.Set_Error (Log, Parse_Error, 0, "num"); return Parse_Error;
-         end if;
+         if Digit_Count = 0 then Errors.Set_Error (Log, Parse_Error, 0, "num"); return Parse_Error; end if;
          Cmd.Args (Arg_Idx) := Byte (Val); Arg_Idx := Arg_Idx + 1;
       end loop;
       Cmd.Arg_Count := Arg_Idx;
       return Success;
    end Parse_Line;
-
+   function Command_Requires_Args (C : Command_Id) return Boolean is
+   begin
+      case C is
+         when Cmd_Set_Config | Cmd_Process_Data | Cmd_Authorize => return True;
+         when others => return False;
+      end case;
+   end Command_Requires_Args;
 end Parser;
